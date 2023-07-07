@@ -34,6 +34,7 @@ def cal_line_length(point1, point2):
     return math.sqrt(
         math.pow(point1[0] - point2[0], 2) +
         math.pow(point1[1] - point2[1], 2))
+
 def get_best_begin_point_single(coordinate):
     """Get the best begin point of the single polygon.
 
@@ -290,68 +291,31 @@ class DOTAMetric(BaseMetric):
 
 
 
-            #################################################################################
-        CLASSES = ('Nimitz Aircraft Carrier', 'Barracks Ship', 'Container Ship', 'Fishing Vessel',
-                   'Henry J. Kaiser-class replenishment oiler', 'Other Warship', 'Yacht',
-                   'Freedom-class littoral combat ship', 'Arleigh Burke-class Destroyer',
-                   'Lewis and Clark-class dry cargo ship', 'Towing vessel', 'unknown', 'Powhatan-class tugboat',
-                   'Barge', '055-destroyer', '052D-destroyer', 'USNS Bob Hope', 'USNS Montford Point', 'Bunker',
-                   'Ticonderoga-class cruiser', 'Oliver Hazard Perry-class frigate',
-                   'Sacramento-class fast combat support ship', 'Submarine', 'Emory S. Land-class submarine tender',
-                   'Hatakaze-class destroyer', 'Murasame-class destroyer', 'Whidbey Island-class dock landing ship',
-                   'Hiuchi-class auxiliary multi-purpose support ship', 'USNS Spearhead',
-                   'Hyuga-class helicopter destroyer', 'Akizuki-class destroyer', 'Bulk carrier',
-                   'Kongo-class destroyer', 'Northampton-class tug', 'Sand Carrier', 'Iowa-class battle ship',
-                   'Independence-class littoral combat ship', 'Tarawa-class amphibious assault ship',
-                   'Cyclone-class patrol ship', 'Wasp-class amphibious assault ship', '074-landing ship',
-                   '056-corvette', '721-transport boat', '037II-missile boat', 'Traffic boat', '037-submarine chaser',
-                   'unknown auxiliary ship', '072III-landing ship', '636-hydrographic survey ship', '272-icebreaker',
-                   '529-Minesweeper', '053H2G-frigate', '909A-experimental ship', '909-experimental ship',
-                   '037-hospital ship', 'Tuzhong Class Salvage Tug', '022-missile boat', '051-destroyer',
-                   '054A-frigate', '082II-Minesweeper', '053H1G-frigate', 'Tank ship', 'Hatsuyuki-class destroyer',
-                   'Sugashima-class minesweepers', 'YG-203 class yard gasoline oiler',
-                   'Hayabusa-class guided-missile patrol boats', 'JS Chihaya', 'Kurobe-class training support ship',
-                   'Abukuma-class destroyer escort', 'Uwajima-class minesweepers', 'Osumi-class landing ship',
-                   'Hibiki-class ocean surveillance ships', 'JMSDF LCU-2001 class utility landing crafts',
-                   'Asagiri-class Destroyer', 'Uraga-class Minesweeper Tender', 'Tenryu-class training support ship',
-                   'YW-17 Class Yard Water', 'Izumo-class helicopter destroyer', 'Towada-class replenishment oilers',
-                   'Takanami-class destroyer', 'YO-25 class yard oiler', '891A-training ship', '053H3-frigate',
-                   '922A-Salvage lifeboat', '680-training ship', '679-training ship', '072A-landing ship',
-                   '072II-landing ship', 'Mashu-class replenishment oilers', '903A-replenishment ship', '815A-spy ship',
-                   '901-fast combat support ship', 'Xu Xiake barracks ship',
-                   'San Antonio-class amphibious transport dock', '908-replenishment ship', '052B-destroyer',
-                   '904-general stores issue ship', '051B-destroyer', '925-Ocean salvage lifeboat',
-                   '904B-general stores issue ship', '625C-Oceanographic Survey Ship', '071-amphibious transport dock',
-                   '052C-destroyer', '635-hydrographic Survey Ship', '926-submarine support ship', '917-lifeboat',
-                   'Mercy-class hospital ship', 'Lewis B. Puller-class expeditionary mobile base ship',
-                   'Avenger-class mine countermeasures ship', 'Zumwalt-class destroyer', '920-hospital ship',
-                   '052-destroyer', '054-frigate', '051C-destroyer', '903-replenishment ship', '073-landing ship',
-                   '074A-landing ship', 'North Transfer 990', '001-aircraft carrier', '905-replenishment ship',
-                   'Hatsushima-class minesweeper', 'Forrestal-class Aircraft Carrier',
-                   'Kitty Hawk class aircraft carrier', 'Blue Ridge class command ship', '081-Minesweeper',
-                   '648-submarine repair ship', '639A-Hydroacoustic measuring ship', 'JS Kurihama', 'JS Suma',
-                   'Futami-class hydro-graphic survey ships', 'Yaeyama-class minesweeper', '815-spy ship',
-                   'Sovremenny-class destroyer')
-
-        with open('./results4.csv','w',newline="") as frr:
+        ################################################################################
+        with open(os.path.join(outfile_prefix,"results.csv"),'w',newline="") as frr:
             writer = csv.writer(frr)
             txt_element = ["ImageID", "LabelName", 'X1', 'Y1', 'X2','Y2', 'X3', 'Y3','X4', 'Y4','Conf']
             writer.writerow(txt_element)
             #frr.writelines(' '.join(txt_element) + '\n')
             for img_id, dets_per_cls in zip(id_list, dets_list):
                 print(img_id)
-                for cls, dets in zip(CLASSES, dets_per_cls):
+                for cls, dets in zip(self.dataset_meta['classes'], dets_per_cls):
                     if dets.size == 0:
                         continue
-                    bboxes = obb2poly_np_le90(dets)
-                    for bbox in bboxes:
+                    th_dets = torch.from_numpy(dets)
+                    if self.predict_box_type == 'rbox':
+                        rboxes, scores = torch.split(th_dets, (5, 1), dim=-1)
+                        qboxes = rbox2qbox(rboxes)
+                    elif self.predict_box_type == 'qbox':
+                        qboxes, scores = torch.split(th_dets, (8, 1), dim=-1)
+                    else:
+                        raise NotImplementedError
+                    for qbox, score in zip(qboxes, scores):
                         txt_element = [str(img_id)+'.bmp',cls
-                                       ] + [f'{p:.2f}' for p in bbox[:-1]]+[str(bbox[-1])]
+                                       ] + [f'{p:.2f}' for p in qbox]+[str(float(score.numpy()[0]))]
                         #frr.writelines(' '.join(txt_element) + '\n')
                         writer.writerow(txt_element)
-            #########################################################################################
-
-
+        #########################################################################################
 
         target_name = osp.split(outfile_prefix)[-1]
         zip_path = osp.join(outfile_prefix, target_name + '.zip')

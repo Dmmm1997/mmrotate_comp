@@ -126,3 +126,5 @@ tmp
 mmrotate/.mim
 work_dirs/
 pretrain_weights/
+.vscode/
+tmp_visual_dataset/

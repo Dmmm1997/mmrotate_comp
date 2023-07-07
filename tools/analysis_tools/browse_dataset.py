@@ -20,6 +20,7 @@ def parse_args():
         type=str,
         help='If there is no display interface, you can save it')
     parser.add_argument('--not-show', default=False, action='store_true')
+    parser.add_argument('--nums', type=int, default=10, help='the number of images to save'),
     parser.add_argument(
         '--show-interval',
         type=float,
@@ -53,7 +54,11 @@ def main():
     visualizer.dataset_meta = dataset.metainfo
 
     progress_bar = ProgressBar(len(dataset))
+    ind = 0
     for item in dataset:
+        ind+=1
+        if ind>args.nums:
+            break
         img = item['inputs'].permute(1, 2, 0).numpy()
         data_sample = item['data_samples'].numpy()
         gt_instances = data_sample.gt_instances

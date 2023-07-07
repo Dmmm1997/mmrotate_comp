@@ -67,6 +67,7 @@ class RotLocalVisualizer(DetLocalVisualizer):
 
             bbox_color = palette if self.bbox_color is None \
                 else self.bbox_color
+            bbox_color = None # FIXME: fix this tmp setting
             bbox_palette = get_palette(bbox_color, max_label + 1)
             colors = [bbox_palette[label] for label in labels]
 

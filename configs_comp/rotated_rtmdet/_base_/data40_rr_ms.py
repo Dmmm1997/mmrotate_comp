@@ -62,7 +62,7 @@ train_dataloader = dict(
         filter_cfg=dict(filter_empty_gt=True),
         pipeline=train_pipeline))
 val_dataloader = dict(
-    batch_size=16,
+    batch_size=4,
     num_workers=4,
     persistent_workers=True,
     drop_last=False,
@@ -82,7 +82,7 @@ test_evaluator = val_evaluator
 # inference on test dataset and format the output results
 # for submission. Note: the test set has no annotation.
 test_dataloader = dict(
-    batch_size=32,
+    batch_size=4,
     num_workers=8,
     persistent_workers=False,
     drop_last=False,
@@ -90,7 +90,7 @@ test_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        data_prefix=dict(img_path='test/images/'),
+        data_prefix=dict(img_path='testv2_fs/images/'),
         test_mode=True,
         pipeline=test_pipeline))
 test_evaluator = dict(
