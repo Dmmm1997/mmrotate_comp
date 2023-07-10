@@ -2,7 +2,7 @@ _base_ = [
     './_base_/default_runtime.py', './_base_/schedule_3x.py',
     './_base_/data40_rr_ss.py','./_base_/tta.py'
 ]
-dota_ckpt = 'pretrain_weights/rotated_rtmdet_l-coco_pretrain-3x-dota_ms-06d248a2.pth'  # noqa
+dota_ckpt = 'work_dirs/rotated_rtmdet_l-3x-aug_blur_noise-data40_tta/epoch_36.pth'  # noqa
 
 angle_version = 'le90'
 model = dict(
@@ -107,6 +107,18 @@ train_pipeline = [
         ratio_range=(1.0, 1.0),
         max_cached_images=20,
         pad_val=(114, 114, 114)),
+    dict(
+        type="RandomBlur",
+        prob=0.5,
+        value_range=[3,15]),
+    dict(
+        type="RandomNoise",
+        prob=0.5,
+        sigma_range=[3,25]),
+    dict(
+        type="RandomBrightness",
+        prob=0.3,
+        gamma_range=[0.1, 1.0]),
     dict(type='mmdet.PackDetInputs')
 ]
 
@@ -135,19 +147,27 @@ train_pipeline_stage2 = [
     dict(
         type='mmdet.Pad', size=(1024, 1024),
         pad_val=dict(img=(114, 114, 114))),
+    dict(
+        type="RandomBlur",
+        prob=0.3,
+        value_range=[3,15]),
+    dict(
+        type="RandomNoise",
+        prob=0.3,
+        sigma_range=[3,25]),
     dict(type='mmdet.PackDetInputs')
 ]
 
 # batch_size = (2 GPUs) x (4 samples per GPU) = 8
 train_dataloader = dict(
-    batch_size=4, num_workers=4, dataset=dict(pipeline=train_pipeline))
+    batch_size=4, num_workers=8, dataset=dict(pipeline=train_pipeline))
 
 
 test_evaluator = dict(
     type='DOTAMetric',
     format_only=True,
     merge_patches=True,
-    outfile_prefix='./work_dirs/rtmdet_test/rotated_rtmdet_l-3x-aug-data40_tta_1flip')
+    outfile_prefix='./work_dirs/rtmdet_test/rotated_rtmdet_l-3x-aug_blur_noise_brightness-data40_tta')
 
 max_epochs=36
 stage2_num_epochs=6

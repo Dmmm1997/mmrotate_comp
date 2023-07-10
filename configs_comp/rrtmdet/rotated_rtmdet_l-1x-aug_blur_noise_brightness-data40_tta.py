@@ -1,9 +1,9 @@
 _base_ = [
-    './_base_/default_runtime.py', './_base_/schedule_3x.py',
-    './_base_/data40_rr_ss.py'
+    './_base_/default_runtime.py', './_base_/schedule_1x.py',
+    './_base_/data40_rr_ss.py', './_base_/tta.py'
 ]
-dota_ckpt = 'pretrain_weights/rotated_rtmdet_l-coco_pretrain-3x-dota_ms-06d248a2.pth'  # noqa
-
+dota_ckpt = 'work_dirs/rotated_rtmdet_l-3x-aug_blur_noise-data40_tta/epoch_36.pth'  # noqa
+load_from = 'work_dirs/rotated_rtmdet_l-3x-aug_blur_noise-data40_tta/epoch_36.pth'
 angle_version = 'le90'
 model = dict(
     type='mmdet.RTMDet',
@@ -23,7 +23,8 @@ model = dict(
         channel_attention=True,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
-        init_cfg=dict(type='Pretrained', prefix='backbone.', checkpoint=dota_ckpt)),
+        init_cfg=dict(
+            type='Pretrained', prefix='backbone.', checkpoint=dota_ckpt)),
     neck=dict(
         type='mmdet.CSPNeXtPAFPN',
         in_channels=[256, 512, 1024],
@@ -32,7 +33,8 @@ model = dict(
         expand_ratio=0.5,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
-        init_cfg=dict(type='Pretrained', prefix='neck.',checkpoint=dota_ckpt)),
+        init_cfg=dict(type='Pretrained', prefix='neck.',
+                      checkpoint=dota_ckpt)),
     bbox_head=dict(
         type='RotatedRTMDetSepBNHead',
         num_classes=133,
@@ -59,7 +61,8 @@ model = dict(
         loss_angle=None,
         norm_cfg=dict(type='SyncBN'),
         act_cfg=dict(type='SiLU'),
-        init_cfg=dict(type='Pretrained', prefix='bbox_head.', checkpoint=dota_ckpt)),
+        init_cfg=dict(
+            type='Pretrained', prefix='bbox_head.', checkpoint=dota_ckpt)),
     train_cfg=dict(
         assigner=dict(
             type='mmdet.DynamicSoftLabelAssigner',
@@ -84,7 +87,7 @@ train_pipeline = [
     dict(
         type='mmdet.RandomResize',
         resize_type='mmdet.Resize',
-        scale=(2048, 2048),
+        scale=(1280, 1280),
         ratio_range=(0.1, 2.0),
         keep_ratio=True),
     dict(
@@ -101,23 +104,17 @@ train_pipeline = [
     dict(
         type='mmdet.Pad', size=(1024, 1024),
         pad_val=dict(img=(114, 114, 114))),
-    # dict(
-    #     type='mmdet.CachedMixUp',
-    #     img_scale=(1024, 1024),
-    #     ratio_range=(1.0, 1.0),
-    #     max_cached_images=20,
-    #     pad_val=(114, 114, 114)),
     dict(
-        type="RandomBlur",
-        prob=1.0,
-        value_range=[5,15]),
-    dict(
-        type="RandomNoise",
-        prob=1.0,
-        sigma_range=[3,30]),
+        type='mmdet.CachedMixUp',
+        img_scale=(1024, 1024),
+        ratio_range=(1.0, 1.0),
+        max_cached_images=10,
+        pad_val=(114, 114, 114)),
+    dict(type="RandomBlur", prob=0.5, value_range=[3, 15]),
+    dict(type="RandomNoise", prob=0.5, sigma_range=[3, 25]),
+    dict(type="RandomBrightness", prob=0.5, gamma_range=[0.2, 1.0]),
     dict(type='mmdet.PackDetInputs')
 ]
-
 
 train_pipeline_stage2 = [
     dict(type='mmdet.LoadImageFromFile', backend_args={{_base_.backend_args}}),
@@ -143,22 +140,26 @@ train_pipeline_stage2 = [
     dict(
         type='mmdet.Pad', size=(1024, 1024),
         pad_val=dict(img=(114, 114, 114))),
+    dict(type="RandomBlur", prob=0.3, value_range=[3, 15]),
+    dict(type="RandomNoise", prob=0.3, sigma_range=[3, 25]),
+    dict(type="RandomBrightness", prob=0.3, gamma_range=[0.2, 1.0]),
     dict(type='mmdet.PackDetInputs')
 ]
 
 # batch_size = (2 GPUs) x (4 samples per GPU) = 8
 train_dataloader = dict(
-    batch_size=4, num_workers=4, dataset=dict(pipeline=train_pipeline))
-
+    batch_size=4, num_workers=8, dataset=dict(pipeline=train_pipeline))
 
 test_evaluator = dict(
     type='DOTAMetric',
     format_only=True,
     merge_patches=True,
-    outfile_prefix='./work_dirs/rtmdet_test/rotated_rtmdet_l-3x-aug-data40')
+    outfile_prefix=
+    './work_dirs/rtmdet_test/rotated_rtmdet_l-1x-aug_blur_noise_brightness-data40_tta'
+)
 
-max_epochs=36
-stage2_num_epochs=6
+max_epochs = 12
+stage2_num_epochs = 6
 custom_hooks = [
     dict(type='mmdet.NumClassCheckHook'),
     dict(

@@ -80,7 +80,7 @@ val_evaluator = dict(type='DOTAMetric', metric='mAP')
 # inference on test dataset and format the output results
 # for submission. Note: the test set has no annotation.
 test_dataloader = dict(
-    batch_size=16,
+    batch_size=8,
     num_workers=8,
     persistent_workers=False,
     drop_last=False,

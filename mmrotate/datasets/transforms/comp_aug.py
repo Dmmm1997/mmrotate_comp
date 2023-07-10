@@ -7,10 +7,6 @@ import mmcv
 import numpy as np
 from mmcv.transforms import BaseTransform
 from mmcv.transforms.utils import cache_randomness
-from mmdet.structures.bbox import BaseBoxes, get_box_type
-from mmdet.structures.mask import PolygonMasks
-from mmengine.utils import is_list_of
-
 from mmrotate.registry import TRANSFORMS
 
 
@@ -118,4 +114,48 @@ class RandomNoise(BaseTransform):
         repr_str = self.__class__.__name__
         repr_str += f'(noise_sigma_range={self.sigma_range})'
         repr_str += f'(noise_prob={self.prob})'
+        return repr_str
+    
+
+@TRANSFORMS.register_module()
+class RandomBrightness(BaseTransform):
+    """Convert boxes in results to a certain box type.
+
+    Args:
+        box_type_mapping (dict): A dictionary whose key will be used to search
+            the item in `results`, the value is the destination box type.
+    """
+
+    def __init__(self, prob: float, gamma_range: list = [0.05, 1.5]) -> None:
+        self.prob = prob
+        self.gamma_range = gamma_range
+
+    @cache_randomness
+    def _is_brightness(self) -> bool:
+        """Randomly decide whether to brightness."""
+        return np.random.rand() < self.prob
+
+    @cache_randomness
+    def _random_gamma_value(self) -> int:
+        """Random brightness gamma_value."""
+        return np.random.choice(
+            np.arange(self.gamma_range[0], self.gamma_range[1], 0.01), 1)[0]
+
+    def transform(self, results: dict) -> dict:
+        """The transform function."""
+        if not self._is_brightness():
+            return results
+
+        gamma = self._random_gamma_value()
+        img = results['img']
+        brightness_image = np.power(img/255.0, gamma)
+        brightness_image = np.uint8(brightness_image * 255)
+        brightness_image = np.clip(brightness_image, a_min=0, a_max=255)
+        results['img'] = brightness_image
+        return results
+
+    def __repr__(self):
+        repr_str = self.__class__.__name__
+        repr_str += f'(brightness_gamma_range={self.gamma_range})'
+        repr_str += f'(brightness_prob={self.prob})'
         return repr_str

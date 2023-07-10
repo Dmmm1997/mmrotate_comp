@@ -22,7 +22,7 @@ def parse_args():
         type=str,
         help='If there is no display interface, you can save it')
     parser.add_argument('--not-show', default=True, action='store_true')
-    parser.add_argument('--nums', type=int, default=10, help='the number of images to save'),
+    parser.add_argument('--nums', type=int, default=100, help='the number of images to save'),
     parser.add_argument(
         '--show-interval',
         type=float,

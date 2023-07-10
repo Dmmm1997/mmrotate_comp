@@ -7,7 +7,9 @@ from torch import Tensor
 
 from mmdet.models.test_time_augs import DetTTAModel
 from mmrotate.registry import MODELS
-
+from mmdet.structures import DetDataSample
+from mmcv.ops import nms_rotated,batched_nms
+from mmengine.structures import InstanceData
 
 def bbox_flip(bboxes: Tensor,
               img_shape: Tuple[int],
@@ -67,3 +69,49 @@ class RotatedTTAModel(DetTTAModel):
         else:
             scores = torch.cat(aug_scores, dim=0)
             return bboxes, scores
+        
+    def _merge_single_sample(
+            self, data_samples: List[DetDataSample]) -> DetDataSample:
+        """Merge predictions which come form the different views of one image
+        to one prediction.
+
+        Args:
+            data_samples (List[DetDataSample]): List of predictions
+            of enhanced data which come form one image.
+        Returns:
+            List[DetDataSample]: Merged prediction.
+        """
+        aug_bboxes = []
+        aug_scores = []
+        aug_labels = []
+        img_metas = []
+        # TODO: support instance segmentation TTA
+        assert data_samples[0].pred_instances.get('masks', None) is None, \
+            'TTA of instance segmentation does not support now.'
+        for data_sample in data_samples:
+            aug_bboxes.append(data_sample.pred_instances.bboxes)
+            aug_scores.append(data_sample.pred_instances.scores)
+            aug_labels.append(data_sample.pred_instances.labels)
+            img_metas.append(data_sample.metainfo)
+
+        merged_bboxes, merged_scores = self.merge_aug_bboxes(
+            aug_bboxes, aug_scores, img_metas)
+        merged_labels = torch.cat(aug_labels, dim=0)
+
+        if merged_bboxes.numel() == 0:
+            return data_samples[0]
+
+        det_bboxes, keep_idxs = batched_nms(merged_bboxes, merged_scores, merged_labels,
+                                            self.tta_cfg.nms)
+
+        det_bboxes = det_bboxes[:self.tta_cfg.max_per_img]
+        det_labels = merged_labels[keep_idxs][:self.tta_cfg.max_per_img]
+
+        results = InstanceData()
+        _det_bboxes = det_bboxes.clone()
+        results.bboxes = _det_bboxes[:, :-1]
+        results.scores = _det_bboxes[:, -1]
+        results.labels = det_labels
+        det_results = data_samples[0]
+        det_results.pred_instances = results
+        return det_results

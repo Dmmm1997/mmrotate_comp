@@ -1,6 +1,6 @@
 # dataset settings
 dataset_type = 'Data30'
-data_root = '/mnt/data/DM_Data/rs_comp_data/split_ss_dota'
+data_root = '/mnt/data/DM_Data/rs_comp_data/split_ms_dota'
 backend_args = None
 
 train_pipeline = [
@@ -70,17 +70,18 @@ val_dataloader = dict(
     dataset=dict(
         type=dataset_type,
         data_root=data_root,
-        ann_file='trainval/annfiles/',
-        data_prefix=dict(img_path='trainval/images/'),
+        ann_file='val/annfiles/',
+        data_prefix=dict(img_path='val/images/'),
         test_mode=True,
         pipeline=val_pipeline))
+test_dataloader = val_dataloader
 
 val_evaluator = dict(type='DOTAMetric', metric='mAP')
 
 # inference on test dataset and format the output results
 # for submission. Note: the test set has no annotation.
 test_dataloader = dict(
-    batch_size=16,
+    batch_size=32,
     num_workers=8,
     persistent_workers=False,
     drop_last=False,
@@ -95,4 +96,4 @@ test_evaluator = dict(
     type='DOTAMetric',
     format_only=True,
     merge_patches=True,
-    outfile_prefix='./work_dirs/rtmdet_r/test')
+    outfile_prefix='./work_dirs/rtmdet_test/ms')
